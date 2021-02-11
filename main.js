@@ -6,16 +6,6 @@ let table = require("table");
 let data, config,config2; 
 let dataDbOutput=[];
 
-const pool=sql.createPool(
-    {
-        host:"localhost",
-        user:"root",
-        password:"",
-        database:"library_manager",
-        connectionLimit:10
-    }
-);
-
 data = [ 
   ["L", "I","B","R","A","R","Y"," ","M","A","N","A","G","E","R"],           
 ] 
@@ -37,142 +27,201 @@ let title = table.table(data, config);
 log(chalk.cyanBright(title)); 
 log(chalk.greenBright("Copyright 2020-MIT license\n"));
 
-inquirer.prompt({
-    type:"list",
-    choices:[
-        "Get data from the library",
-        "Search book by Author name",
-        "Search Author by book name",
-        "Add data to your library manager"
-    ],
-    name:"Choice"
+var connection =sql.createConnection({
+    host     : 'localhost',
+    user     : 'root',
+    password : '',
+    database : 'library_manager'
+});
 
-}).then(answer=>{
-    log(`${answer.Choice}`);
-    if(answer.Choice =="Get data from the library"){
+connection.connect(function(error){
+    if(error){return log(chalk.cyanBright("Please connect the cli with the database !"));}
+    else{main();}
+});
 
-        pool.query(`select * from librarymanage`,(err,result,field)=>{
-            if(err){
-               return log(err);
-            }
-            if(result.length !=0){
-            dataDbOutput=[
-                ["Author","Book"],
-            ];
-            let dataReceive=table.table(dataDbOutput,config2);
-            log(chalk.blueBright(dataReceive));
-            
-            result.forEach(element => {
-                log(chalk.blueBright(`${element.author} <====> ${element.title}`));
+let main=()=>{
 
+    inquirer.prompt({
+        type:"list",
+        choices:[
+            "Get data from the library",
+            "Search book by Author name",
+            "Search Author by book name",
+            "Add data to your library manager"
+        ],
+        name:"choice"
+    
+    }).then(answer=>{
+
+        if(answer.choice == "Get data from the library" && answer.choice !=null){getData();}
+        else if(answer.choice == "Search book by Author name"  && answer.choice !=null){searchBookByAuthor();}
+        else if(answer.choice == "Search Author by book name"  && answer.choice !=null){searchAuthorByBook();} 
+        else if(answer.choice == "Add data to your library manager"  && answer.choice !=null){addDataToDb();}
+    });
+}
+
+let getData=()=>{
+    connection.query(`select * from librarymanage`,(err,result,field)=>{
+
+        if(err){
+           return log(err);
+        }
+        if(result.length !=0){
+        dataDbOutput=[
+            ["Author","Book"],
+        ];
+        let dataReceive=table.table(dataDbOutput,config2);
+        log(chalk.blueBright(dataReceive));
+        
+        result.forEach(element => {
+            log(chalk.blueBright(`${element.author} <====> ${element.title}`));
+
+        });
+      }else{
+          log(chalk.blueBright('No data have been added to our library'));
+          invokeMain();
+      }
+        
+    });    
+}
+
+let searchBookByAuthor=()=>{
+   
+    inquirer.prompt(
+        {   type:"input",
+            message:"What is the name of the author:",
+            name:"author"
+        }
+    ).then(answer=>{
+       
+        if(answer.author !='' && answer.author !=null){
+            connection.query(`SELECT title from librarymanage manage WHERE author='${answer.author}' LIKE '%${answer.author}%'`,(err,result,field)=>{
+                if(err){
+                   return log(err);
+                }
+                if(result.length !=0){
+                dataDbOutput=[
+                    ["Book"],3
+                ];
+                let dataReceive=table.table(dataDbOutput,config2);
+                log(chalk.blueBright(dataReceive));
+                
+                result.forEach(element => {
+                    log(chalk.blueBright(`${element.title}`));
+    
+                });
+              }else{
+                  log(chalk.blueBright('Not found'));
+                  invokeMain();
+              }
+                
             });
-          }else{
-              log(chalk.blueBright('No data have been added to our library'));
-          }
-            
-        });    
-    }
+        }else if(answer.author == null || answer.author == ""){
+            searchBookByAuthor();
+        }
 
-    else if(answer.Choice == "Search book by Author name"){
-        inquirer.prompt(
-            {   type:"input",
-                message:"What is the name of the author:",
-                name:"author"
-            }
-        ).then(answer=>{
-            if(answer.author !='' || answer.author !=undefined){
-                pool.query(`select title from librarymanage where author='${answer.author}'`,(err,result,field)=>{
-                    if(err){
-                       return log(err);
-                    }
-                    if(result.length !=0){
-                    dataDbOutput=[
-                        ["Book"],
-                    ];
-                    let dataReceive=table.table(dataDbOutput,config2);
-                    log(chalk.blueBright(dataReceive));
-                    
-                    result.forEach(element => {
-                        log(chalk.blueBright(`${element.title}`));
-        
-                    });
-                  }else{
-                      log(chalk.blueBright('Not found'));
-                  }
-                    
-                });
-            }
-        });
-    }
+    });
+}
 
-    else if(answer.Choice == "Search Author by book name"){
-        inquirer.prompt(
-            {   type:"input",
-                message:"What is the name of the book:",
-                name:"title"
-            }
-        ).then(answer=>{
-            if(answer.title !='' || answer.title !=undefined){
-                pool.query(`select author from librarymanage where title='${answer.title}'`,(err,result,field)=>{
-                    if(err){
-                       return log(err);
-                    }
-                    if(result.length !=0){
-                    dataDbOutput=[
-                        ["Author"],
-                    ];
-                    let dataReceive=table.table(dataDbOutput,config2);
-                    log(chalk.blueBright(dataReceive));
-                    
-                    result.forEach(element => {
-                        log(chalk.blueBright(`${element.author}`));
-        
-                    });
-                  }else{
-                      log(chalk.blueBright('Not found'));
-                  }
-                    
+let searchAuthorByBook=()=>{
+    inquirer.prompt(
+        {   type:"input",
+            message:"What is the name of the book:",
+            name:"title"
+        }
+    ).then(answer=>{
+        if(answer.title !='' || answer.title !=null){
+            connection.query(`SELECT author FROM librarymanage WHERE title='${answer.title}' LIKE '%${answer.title}%' `,(err,result,field)=>{
+                if(err){
+                   return log(err);
+                }
+                if(result.length !=0){
+                dataDbOutput=[
+                    ["Author"],
+                ];
+                let dataReceive=table.table(dataDbOutput,config2);
+                log(chalk.blueBright(dataReceive));
+                
+                result.forEach(element => {
+                    log(chalk.blueBright(`${element.author}`));
+    
                 });
-            }
-        });
-    }
-    else if(answer.Choice == "Add data to your library manager"){
-        let getName;
-        let getTitle;
+              }else{
+                  log(chalk.blueBright('Not found'));
+                  invokeMain();
+              }
+                
+            });
+        }else if(answer.title == null || answer.title == ""){
+             searchAuthorByBook();
+        }
+    });
+}
+let addDataToDb=()=>{
+
+    let getName = null;
+    let getBookName = null;
+
+    (function getAuthor(){
         inquirer.prompt(
             {   type:"input",
                 message:"What is the name of the author:",
                 name:"newAuthor"
-            },
-        ).then(answer=>{
-            if(answer.newAuthor !=""){
-                getName=answer.newAuthor; 
-                inquirer.prompt(
-                    {   type:"input",
-                        message:"What is the title of the book:",
-                        name:"newTitle"
-                    },
-                ).then(res=>{
-                    if( res.newTitle !=""){
-                      getTitle=res.newTitle;
-                    }
-                    InsertData(getTitle,getName);
-
-                });
+            }
+        ).then((response)=>{
+            if(response.newAuthor == null || response.newAuthor ==""){
+                getAuthor();
+            }else if(response.newAuthor != null || response.newAuthor !=""){
+               getName = response.newAuthor;
+               getTitle();
             }
         });
+    })();
+    function getTitle(){
 
-        function InsertData(bookName,authorName){
-          let query=`insert into librarymanage(author,title) values('${authorName}','${bookName}')`;
-          pool.query(query,(err,result)=>{
-              if(err){
-                  log(err);
-                  //return false;
-              }
-              log("Success the author and the book have been added");
-              //return 0 or true
-          });
-        }
-        
+        inquirer.prompt(
+            {   type:"input",
+                message:"What is the title of the book:",
+                name:"newTitle"
+            }
+        ).then((response)=>{
+            if(response.newTitle == null || response.newTitle ==""){
+                getTitle();
+            }else if(response.newTitle != null || response.newTitler !=""){
+                getBookName = response.newTitle;
+                addData(getName,getBookName);
+            }
+        });
     }
-})
+
+    function addData(author,title){
+        let query=`insert into librarymanage(author,title) values('${author}','${title}')`;
+        connection.query(query,(err,result)=>{
+            if(err){
+               return log("Have an error");
+            }
+            log("Success the author and the book have been added in the library");
+            invokeMain();
+        });
+    }
+
+}
+
+let invokeMain=()=>{
+
+    inquirer.prompt({
+        type:"confirm",
+        message:"Do you want exit to the program ?",
+        default:false,
+        name:"confirmation",
+
+
+    }).then((response)=>{
+         if(response.confirmation == true){
+               process.exit(22);
+         }else if(response.confirmation == false ){
+               main();
+         }
+    });
+
+}
