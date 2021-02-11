@@ -1,3 +1,3 @@
 # Book-Library-Manager
-It's a library management system(node js,sql)
+A book management cli from a library
 
